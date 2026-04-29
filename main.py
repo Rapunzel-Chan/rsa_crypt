@@ -15,6 +15,7 @@ class InteractiveMode:
     3. Шифрование текста/файла
     4. Расшифрование текста/файла
     5. Демонстрация атаки
+    6. Ручной режим (маленькие ключи для проверки)
     """
 
     def __init__(self):
@@ -47,6 +48,8 @@ class InteractiveMode:
                 self._decrypt_file()
             elif choice == '8':
                 self._attack_demo()
+            elif choice == '9':
+                self._manual_key_mode()
             elif choice == '0':
                 print("\n👋 До свидания!")
                 break
@@ -60,7 +63,6 @@ class InteractiveMode:
         print("\n📖 Справка:")
         print("   • Реализован алгоритм RSA с поддержкой больших чисел (до 4096 бит)")
         print("   • Поддерживаются русский и английский текст, эмодзи")
-        print("   • Соответствует требованиям практической работы №7")
         print("=" * 70)
 
     def _show_menu(self):
@@ -75,6 +77,7 @@ class InteractiveMode:
         print("6. 📁 Зашифровать файл")
         print("7. 📁 Расшифровать файл")
         print("8. 🪓 Демонстрация атаки (для маленького модуля)")
+        print("9. 🔧 Ручной режим (маленькие ключи)")
         print("0. 🚪 Выход")
         print("━" * 60)
 
@@ -84,7 +87,11 @@ class InteractiveMode:
         print("   Доступные размеры: 256, 512, 1024, 2048, 4096 бит")
 
         bits = input("👉 Размер ключа в битах (2048): ").strip()
-        bits = int(bits) if bits else 2048
+        try:
+            bits = int(bits) if bits else 2048
+        except ValueError:
+            print("❌ Ошибка: Введите число. Используется 2048.")
+            bits = 2048
 
         self.generator = RSAKeyGenerator(bits=bits)
         public, private = self.generator.generate()
@@ -111,13 +118,13 @@ class InteractiveMode:
             self.generator = RSAKeyGenerator()
             e, n = self.generator.load_public_key_from_file(pub_file)
             self.rsa.set_public_key(e, n)
-            d, n2 = self.generator.load_private_key_from_file(priv_file)
-            self.rsa.set_private_key(d, n2)
+            d, n = self.generator.load_private_key_from_file(priv_file)
+            self.rsa.set_private_key(d, n)
             self.keys_loaded = True
             self.current_n_bits = n.bit_length()
             print(f"✅ Ключи загружены. n = {self.current_n_bits} бит")
-        except Exception as e:
-            print(f"❌ Ошибка: {e}")
+        except Exception as err:
+            print(f"❌ Ошибка: {err}")
 
     def _show_keys(self):
         """Отображение текущих ключей."""
@@ -144,36 +151,41 @@ class InteractiveMode:
             print("❌ Текст не может быть пустым")
             return
 
-        # ДО ШИФРОВАНИЯ показываем числовое представление
-        show_details = input("\nПоказать числовое представление (ASCII, двоичный вид)? (y/n): ").strip().lower()
-        if show_details == 'y':
-            block_bits_preview = MessageConverter.get_block_bits(self.rsa.public_key[1])
-            MessageConverter.display_numerical_representation(text, block_bits_preview)
-        print(f"\n📏 Исходный текст: {len(text)} символов, {len(text.encode('utf-8'))} байт")
-        # Выводим символы и их коды
-        print(f"\n   Символы: {', '.join(text)}")
-        print(f"   ASCII-коды: {', '.join(str(ord(c)) for c in text)}")
-        print(f"   HEX: {', '.join(f'0x{ord(c):02X}' for c in text)}")
-
-        # Двоичное представление
-        binary_bytes = ' '.join(f'{ord(c):08b}' for c in text)
-        print(f"\n   Двоичное представление (побайтово):")
-        print(f"      {binary_bytes}")
-
-        full_binary = ''.join(f'{ord(c):08b}' for c in text)
-        print(f"   Длина: {len(full_binary)} бит")
-
         print("⏳ Выполняется шифрование...")
 
+        # ТОЛЬКО ОДИН ВЫЗОВ encrypt
         encrypted, block_bits, original_bit_length = self.rsa.encrypt(text)
 
         print(f"\n✅ Зашифровано за {self.rsa.encrypt_time:.4f} сек")
-        print(f"📌 Количество блоков: {len(encrypted)}")
+
+        # Показываем числовое представление
+        show_details = input("\nПоказать числовое представление (ASCII, двоичный вид)? (y/n): ").strip().lower()
+        if show_details == 'y':
+            print(f"\n📊 ЧИСЛОВОЕ ПРЕДСТАВЛЕНИЕ СООБЩЕНИЯ")
+            print("-" * 60)
+
+            print(f"\n   Символы: {', '.join(text)}")
+            print(f"   ASCII-коды: {', '.join(str(ord(c)) for c in text)}")
+            print(f"   HEX: {', '.join(f'0x{ord(c):02X}' for c in text)}")
+
+            # Двоичное представление
+            binary_bytes = ' '.join(f'{ord(c):08b}' for c in text)
+            print(f"\n   Двоичное представление (побайтово):")
+            print(f"      {binary_bytes}")
+
+            full_binary = ''.join(f'{ord(c):08b}' for c in text)
+            print(f"   Длина: {len(full_binary)} бит")
+
+            # Размер блока
+            print(f"\n   Размер блока: {block_bits} бит (⌊log2 n⌋)")
+
+        print(f"\n📌 Количество блоков: {len(encrypted)}")
         print(f"📌 Размер блока: {block_bits} бит")
         print(f"📌 Битовая длина исходного сообщения: {original_bit_length}")
         print(f"📌 Шифротекст: {encrypted}")
-        # Вывод шифротекста в формате лекции
-        MessageConverter.display_as_lecture(encrypted, block_bits, "Шифротекст")
+
+        # Вывод шифротекста - ПЕРЕДАЁМ n (модуль), а не block_bits!
+        MessageConverter.display_as_lecture(encrypted, self.rsa.public_key[1], "Шифротекст")
 
         # Сохраняем для возможного расшифрования
         self.last_encrypted = encrypted
@@ -220,15 +232,15 @@ class InteractiveMode:
             print(f"      {binary_bytes[:100]}{'...' if len(binary_bytes) > 100 else ''}")
 
             # Вывод шифротекста, который был расшифрован
-            MessageConverter.display_as_lecture(encrypted, block_bits, "Входной шифротекст")
+            MessageConverter.display_as_lecture(encrypted, self.rsa.public_key[1], "Входной шифротекст")
 
             save = input("\n💾 Сохранить расшифрованный текст в файл? (y/n): ").strip().lower()
             if save == 'y':
                 filename = input("   Имя файла (decrypted.txt): ").strip() or "decrypted.txt"
                 FileManager.save_text_to_file(decrypted, filename)
 
-        except Exception as e:
-            print(f"❌ Ошибка: {e}")
+        except Exception as err:
+            print(f"❌ Ошибка: {err}")
 
     def _encrypt_file(self):
         """Шифрование файла."""
@@ -245,8 +257,8 @@ class InteractiveMode:
             encrypted, block_bits, original_bit_length = self.rsa.encrypt(text)
             FileManager.save_encrypted_to_file(encrypted, block_bits, original_bit_length, outfile)
             print(f"✅ Файл зашифрован")
-        except Exception as e:
-            print(f"❌ Ошибка: {e}")
+        except Exception as err:
+            print(f"❌ Ошибка: {err}")
 
     def _decrypt_file(self):
         """Расшифрование файла."""
@@ -265,8 +277,8 @@ class InteractiveMode:
             print(f"✅ Файл расшифрован")
             print(f"\n📨 Расшифрованный текст (первые 200 символов):")
             print(decrypted[:200] + "..." if len(decrypted) > 200 else decrypted)
-        except Exception as e:
-            print(f"❌ Ошибка: {e}")
+        except Exception as err:
+            print(f"❌ Ошибка: {err}")
 
     def _attack_demo(self):
         """Демонстрация криптоаналитических атак с выбором."""
@@ -439,6 +451,190 @@ class InteractiveMode:
         else:
             print("\n❌ Атака не удалась (ни один метод не сработал)")
 
+    def _manual_key_mode(self):
+        """
+        Режим ручного ввода маленьких ключей.
+        Использует методы из rsa_code для шифрования/расшифрования.
+        Только отображает промежуточные результаты.
+        """
+        print("\n" + "🔧" * 35)
+        print("РЕЖИМ РУЧНОГО ВВОДА КЛЮЧЕЙ")
+        print("🔧" * 35)
+
+        print("\n📌 Введите параметры ключа (маленькие числа):")
+
+        # Ввод p
+        while True:
+            try:
+                p = int(input("   p (простое число, например 61): ").strip())
+                if not PrimeGenerator.miller_rabin(p):
+                    print(f"   {p} не является простым числом!")
+                    continue
+                break
+            except:
+                print("   Введите целое число")
+
+        # Ввод q
+        while True:
+            try:
+                q = int(input("   q (простое число, например 53): ").strip())
+                if not PrimeGenerator.miller_rabin(q):
+                    print(f"   {q} не является простым числом!")
+                    continue
+                if q == p:
+                    print("   q должно отличаться от p!")
+                    continue
+                break
+            except:
+                print("   Введите целое число")
+
+        n = p * q
+        phi = (p - 1) * (q - 1)
+
+        print(f"\n📌 Вычислено:")
+        print(f"   n = {p} × {q} = {n}")
+        print(f"   φ(n) = ({p}-1) × ({q}-1) = {phi}")
+
+        # Ввод e
+        while True:
+            try:
+                e = int(input("\n   e (экспонента зашифрования, например 17): ").strip())
+                if ModularArithmetic.gcd(e, phi) != 1:
+                    print(f"   НОД({e}, {phi}) = {ModularArithmetic.gcd(e, phi)} ≠ 1")
+                    continue
+                break
+            except:
+                print("   Введите целое число")
+
+        # Вычисляем d
+        d = ModularArithmetic.mod_inverse(e, phi)
+        print(f"   d = {e}⁻¹ mod {phi} = {d}")
+
+        print("\n" + "-" * 60)
+        print("🔑 КЛЮЧИ:")
+        print(f"   Открытый ключ: (e={e}, n={n})")
+        print(f"   Закрытый ключ: (d={d}, n={n})")
+
+        # Устанавливаем ключи
+        self.rsa.set_public_key(e, n)
+        self.rsa.set_private_key(d, n)
+        self.keys_loaded = True
+        self.current_n_bits = n.bit_length()
+
+        # Ввод сообщения
+        print("\n" + "-" * 60)
+        message = input("📨 Введите сообщение (например, CRYPTO): ").strip()
+        if not message:
+            print("❌ Сообщение не может быть пустым")
+            return
+
+        # ========== ИСПОЛЬЗУЕМ СТАНДАРТНЫЕ МЕТОДЫ RSA ==========
+
+        # 1. Получаем блоки через MessageConverter (как в обычном шифровании)
+        blocks, block_bits, original_bit_length = MessageConverter.text_to_blocks(message, n)
+
+        # 2. Шифруем
+        encrypted = [self.rsa.encrypt_block(m, e, n) for m in blocks]
+
+        # ========== ОТОБРАЖАЕМ ПРОМЕЖУТОЧНЫЕ РЕЗУЛЬТАТЫ ==========
+
+        # ШАГ 1: Представление сообщения
+        print("\n" + "═" * 60)
+        print("📖 ШАГ 1: ПРЕДСТАВЛЕНИЕ СООБЩЕНИЯ")
+        print("═" * 60)
+
+        # Получаем двоичную строку
+        byte_data = message.encode('utf-8')
+        binary_str = ''.join(f'{b:08b}' for b in byte_data)
+        binary_bytes = ' '.join(f'{b:08b}' for b in byte_data)
+
+        print(f"\n   Двоичная строка:")
+        print(f"      {binary_bytes}")
+        print(f"      Длина: {len(binary_str)} бит")
+
+        print(f"\n   Размер блока: {block_bits} бит (⌊log2 n⌋)")
+        print(f"   Разбиение (справа налево, дополнение слева):")
+
+        # Показываем блоки в порядке от старших к младшим (как в лекции)
+        for i, m in enumerate(blocks):
+            m_number = len(blocks) - i
+            binary = f'{m:0{block_bits}b}'
+            print(f"      m{m_number} = {binary}₂ = {m}₁₀")
+
+        print(f"\n   📦 Блоки (m{len(blocks)}...m1): {list(blocks)}")
+
+        # ШАГ 2: Шифрование
+        print("\n" + "═" * 60)
+        print("🔐 ШАГ 2: ЗАШИФРОВАНИЕ")
+        print("═" * 60)
+        print(f"   Формула: c_i = m_i^{e} mod {n}")
+
+        for idx, (m, c) in enumerate(zip(blocks, encrypted)):
+            index_c = len(blocks) - idx
+            print(f"\n   c{index_c}: {m}^{e} mod {n} = {c}")
+
+        print(f"\n   📦 Шифротекст (c{len(encrypted)}...c1): {encrypted}")
+
+        # Вывод в формате
+        MessageConverter.display_as_lecture(encrypted, n, "Шифротекст")
+
+        # ШАГ 3: Расшифрование
+        print("\n" + "═" * 60)
+        print("🔓 ШАГ 3: РАСШИФРОВАНИЕ")
+        print("═" * 60)
+        print(f"   Формула: m_i = c_i^{d} mod {n}")
+
+        decrypted_blocks = []
+        for idx, c in enumerate(encrypted):
+            index_de_c = len(blocks) - idx
+            m_recovered = self.rsa.decrypt_block(c, d, n)
+            decrypted_blocks.append(m_recovered)
+            print(f"\n   Блок {index_de_c}: {c}^{d} mod {n} = {m_recovered}")
+
+        # ШАГ 4: Обратное преобразование
+        print("\n" + "═" * 60)
+        print("📨 ШАГ 4: ОБРАТНОЕ ПРЕОБРАЗОВАНИЕ В ТЕКСТ")
+        print("═" * 60)
+
+        all_bits = ''
+        for m in decrypted_blocks:
+            all_bits += f'{m:0{block_bits}b}'
+
+        print(f"   Собранные биты из блоков: {all_bits}")
+
+        # Обрезаем до исходной длины
+        all_bits = all_bits[-original_bit_length:]
+        print(f"   Обрезаем до {original_bit_length} бит: {all_bits}")
+
+        # Разбиваем на байты
+        if len(all_bits) % 8 != 0:
+            all_bits = all_bits + '0' * (8 - len(all_bits) % 8)
+
+        byte_data = int(all_bits, 2).to_bytes(len(all_bits) // 8, 'big')
+        decrypted_text = byte_data.decode('utf-8')
+
+        print(f"\n   Расшифрованный текст: {decrypted_text}")
+
+        # ПРОВЕРКА
+        print("\n" + "═" * 60)
+        print("✅ ПРОВЕРКА")
+        print("═" * 60)
+        if message == decrypted_text:
+            print("   ✅✅✅ КОРРЕКТНО! Исходное и расшифрованное совпадают! ✅✅✅")
+        else:
+            print("   ❌ ОШИБКА! Сообщения не совпадают.")
+
+        # СОХРАНЕНИЕ
+        save = input("\n💾 Сохранить этот пример в файлы? (y/n): ").strip().lower()
+        if save == 'y':
+            prefix = input("   Префикс для файлов (manual_keys): ").strip() or "manual_keys"
+
+            with open(f"{prefix}_public.txt", 'w') as f:
+                f.write(f"# RSA PUBLIC KEY\n# p={p}, q={q}\n{e}\n{n}\n")
+            with open(f"{prefix}_private.txt", 'w') as f:
+                f.write(f"# RSA PRIVATE KEY\n# p={p}, q={q}\n{d}\n{n}\n")
+
+            print(f"   ✅ Сохранено в {prefix}_public.txt, {prefix}_private.txt")
 
 # ============================================================
 # 10. ТОЧКА ВХОДА
