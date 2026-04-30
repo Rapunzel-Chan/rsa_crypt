@@ -58,7 +58,7 @@ class InteractiveMode:
 
     def _show_welcome(self):
         print("=" * 70)
-        print("🔐 RSA КРИПТОСИСТЕМА (ГОСТ Р 34.10-2012)".center(70))
+        print("🔐 RSA КРИПТОСИСТЕМА".center(70))
         print("=" * 70)
         print("\n📖 Справка:")
         print("   • Реализован алгоритм RSA с поддержкой больших чисел (до 4096 бит)")

@@ -732,135 +732,68 @@ class Attack:
                 return p, q
         return None, None
 
-    # @staticmethod
-    # def factorize_fermat(n: int, max_iterations: int = 10000):
-    #     """
-    #     Атака 2: Метод факторизации Ферма.
-    #
-    #     Математическая основа: n = a² - b² = (a-b)(a+b)
-    #
-    #     Алгоритм:
-    #     1. a = ⌈√n⌉
-    #     2. Цикл:
-    #        b² = a² - n
-    #        если b² — полный квадрат:
-    #            b = √b²
-    #            p = a - b, q = a + b
-    #            если p*q == n → вернуть (p, q)
-    #        a = a + 1
-    #
-    #     Эффективен, когда p и q близки.
-    #
-    #     Пример: n = 3233 (p=53, q=61, разница 8)
-    #         a = ⌈√3233⌉ = 57
-    #         57² - 3233 = 3249 - 3233 = 16 = 4²
-    #         p = 57 - 4 = 53, q = 57 + 4 = 61 ✅
-    #     """
-        # # Если n чётное, сразу возвращаем делители
-        # if n % 2 == 0:
-        #     return 2, n // 2
-        #
-        # a = ModularArithmetic.isqrt(n) + 1
-        #
-        # # Быстрая проверка: если a и n имеют разную чётность, корректируем
-        # if (a % 2) != (n % 2):
-        #     a += 1
-        #
-        # for iteration in range(max_iterations):
-        #     b2 = a * a - n
-        #
-        #     if b2 < 0:
-        #         a += 1
-        #         continue
-        #
-        #     # Оптимизация: квадраты по модулю 16 могут быть только 0,1,4,9
-        #     # Быстро отсеиваем заведомо неполные квадраты
-        #     if b2 % 16 not in {0, 1, 4, 9}:
-        #         a += 1
-        #         continue
-        #
-        #     b = ModularArithmetic.isqrt(b2)
-        #     if b * b == b2:
-        #         p = a - b
-        #         q = a + b
-        #         if p > 1 and q > 1 and p * q == n:
-        #             # Убеждаемся, что p и q простые (опционально)
-        #             if PrimeGenerator.miller_rabin(p) and PrimeGenerator.miller_rabin(q):
-        #                 return p, q
-        #             # Даже если не простые, но дают n — возвращаем
-        #             return p, q
-        #
-        #     a += 1
-        #
-        # return None, None
+    @staticmethod
+    def factorize_fermat(n: int, max_iterations: int = 10000):
+        """
+        Атака 2: Метод факторизации Ферма.
 
-    def _attack_fermat(self):
-        """Атака 2: Метод Ферма (полностью самодостаточный)."""
-        print("\n📐 АТАКА: МЕТОД ФЕРМА")
-        print("   Генерируем ключ с близкими p и q...")
+        Математическая основа: n = a² - b² = (a-b)(a+b)
 
-        # Генерация ключа
-        bits = 16
-        p = PrimeGenerator.generate_prime(bits)
-        q = p + random.randrange(2, 100, 2)
-        while not PrimeGenerator.miller_rabin(q):
-            q += 2
-        n = p * q
-        phi = (p - 1) * (q - 1)
-        e = 65537
-        if ModularArithmetic.gcd(e, phi) != 1:
-            e = 17
+        Алгоритм:
+        1. a = ⌈√n⌉
+        2. Цикл:
+           b² = a² - n
+           если b² — полный квадрат:
+               b = √b²
+               p = a - b, q = a + b
+               если p*q == n → вернуть (p, q)
+           a = a + 1
 
-        print(f"\n📌 Открытый ключ: e = {e}")
-        print(f"                 n = {n} ({n.bit_length()} бит)")
-        print(f"📌 Секретные p и q: p = {p}, q = {q}")
-        print(f"   Разница между p и q: {abs(p - q)}")
+        Эффективен, когда p и q близки.
 
-        print("\n⏳ Выполняется атака методом Ферма...")
-        import time
-        start = time.time()
+        Пример: n = 3233 (p=53, q=61, разница 8)
+            a = ⌈√3233⌉ = 57
+            57² - 3233 = 3249 - 3233 = 16 = 4²
+            p = 57 - 4 = 53, q = 57 + 4 = 61 ✅
+        """
+        # Если n чётное, сразу возвращаем делители
+        if n % 2 == 0:
+            return 2, n // 2
 
-        # ==================== АТАКА ФЕРМА ====================
-        # Шаг 1: a = ⌈√n⌉
-        a = int(n ** 0.5)
-        if a * a < n:
+        a = ModularArithmetic.isqrt(n) + 1
+
+        # Быстрая проверка: если a и n имеют разную чётность, корректируем
+        if (a % 2) != (n % 2):
             a += 1
 
-        p_found = None
-        q_found = None
-
-        for _ in range(1000000):  # max_iterations
+        for iteration in range(max_iterations):
             b2 = a * a - n
 
-            # Быстрая проверка: квадрат по модулю 16 может быть 0,1,4,9
-            if b2 % 16 in (0, 1, 4, 9):
-                b = int(b2 ** 0.5)
+            if b2 < 0:
+                a += 1
+                continue
 
-                # Проверяем основное значение
-                if b * b == b2:
-                    p_found, q_found = a - b, a + b
-                    break
+            # Оптимизация: квадраты по модулю 16 могут быть только 0,1,4,9
+            # Быстро отсеиваем заведомо неполные квадраты
+            if b2 % 16 not in {0, 1, 4, 9}:
+                a += 1
+                continue
 
-
-                # Проверка на случай погрешности float (актуально для больших чисел)
-                elif (b + 1) * (b + 1) == b2:
-                    b += 1
-                    p_found, q_found = a - b, a + b
-                    break
+            b = ModularArithmetic.isqrt(b2)
+            if b * b == b2:
+                p = a - b
+                q = a + b
+                if p > 1 and q > 1 and p * q == n:
+                    # Убеждаемся, что p и q простые (опционально)
+                    if PrimeGenerator.miller_rabin(p) and PrimeGenerator.miller_rabin(q):
+                        return p, q
+                    # Даже если не простые, но дают n — возвращаем
+                    return p, q
 
             a += 1
-        # ====================================================
 
-        elapsed = time.time() - start
+        return None, None
 
-        if p_found and q_found and p_found * q_found == n:
-            # Сортируем, чтобы p было меньшим
-            p_res, q_res = min(p_found, q_found), max(p_found, q_found)
-            print(f"\n✅ АТАКА УСПЕШНА! (время: {elapsed:.4f} сек)")
-            print(f"   Найдено: p = {p_res}, q = {q_res}")
-            print(f"   Проверка: {p_res} × {q_res} = {p_res * q_res}")
-        else:
-            print("\n❌ Атака не удалась (превышен лимит итераций)")
     @staticmethod
     def wiener_attack(e: int, n: int):
         """
