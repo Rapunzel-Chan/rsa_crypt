@@ -89,10 +89,13 @@ python main.py
 ```
 
 ## Структура проекта
+
+```plaintext
 RSA_CRYPTO/
-├── rsa_code.py # Основная реализация RSA
-├── main.py # Интерактивная оболочка
-└── test_rsa_code.py # Модульные тесты
+├── rsa_code.py          # Основная реализация RSA
+├── main.py              # Интерактивная оболочка
+└── test_rsa_code.py     # Модульные тесты
+```
 
 ## Установка
 
